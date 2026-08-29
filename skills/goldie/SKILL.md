@@ -60,6 +60,11 @@ It needs Node 20+ and `ffmpeg` on the PATH (`brew install ffmpeg`). If
 `bun $GOLDIE_ROOT/src/cli.ts <cmd>` instead. All app-specific files live in
 the app repo.
 
+goldie knows two devices: `iphone-6.9` (iPhone 17 Pro Max, the store's
+required size) and `ipad-13` (iPad Pro 13-inch, for apps that also ship on
+iPad). Both replay the same flows and share the copy, theme and template;
+each has its own bezels, raw captures, output folder and studio view.
+
 ## Step 1: Gather app facts
 
 From the app repo, find:
@@ -78,7 +83,11 @@ Use argent MCP tools to see the app before deciding anything. Boot an iPhone
 16 Pro Max class simulator, install the Release build, launch it, and walk the
 main screens with `describe` and `screenshot`. Also check the app repo for
 existing recorded flows in `.argent/flows/`; they are the best source of
-working selectors and coordinates.
+working selectors and coordinates. If the app ships on iPad too (`supportsTablet`
+in an Expo config, or an iPad target), plan on `devices: ["iphone-6.9", "ipad-13"]`
+and check the same screens on an "iPad Pro 13-inch (M4)" simulator: the flows
+must use selectors that hold on both layouts, so prefer `text:` and `id:` over
+coordinates there.
 
 Choose:
 
@@ -199,7 +208,8 @@ the next prompt can build on it.
 |---|---|---|
 | Different headline, subhead or store copy | `scenes[].headline` / `subhead`, `store.*` | `frame`, `manifest` |
 | A new look: background, text colors, font, sizing | `theme.*`, or `scenes[].background` for one tile | `frame`, `manifest` |
-| A different bezel, or no bezel | `frame.variant`, `theme.screenOnly` | `frame`, `manifest` |
+| A different bezel, or no bezel | `frame.variant` (one variant, or one per device key), `theme.screenOnly` | `frame`, `manifest` |
+| iPad screenshots as well | `devices: ["iphone-6.9", "ipad-13"]`, `frame.variant["ipad-13"]` | `capture --device ipad-13`, `frame`, `preview`, `manifest` |
 | A varied strip: panorama opener, hero, tilted tiles, a breather | `theme.template`: a built-in key or a sequence of layout keys (see `references/config.md`) | `frame`, `manifest` |
 | A different layout for every tile, or one | `theme.layout`, or `scenes[].layout` for one tile | `frame`, `manifest` |
 | Two screens in one tile, or a two-tile panorama | `scenes[].layout: "duo"` / `"panorama-duo"` plus `secondScene`, or `"panorama"` | `frame`, `manifest` |

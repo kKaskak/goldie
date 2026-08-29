@@ -55,7 +55,10 @@ goldie studio     Preview and tweak the assets in the browser
 ```
 
 Output lands in `out/`: 6.9" screenshots (1320 x 2868) and a 886 x 1920
-H.264 preview, per locale. Previews must run 15 to 30 seconds.
+H.264 preview, per locale. Previews must run 15 to 30 seconds. Add
+`"ipad-13"` to `devices` for 13" iPad screenshots (2064 x 2752) and a
+1200 x 1600 preview from the same flows, each device with its own bezels,
+captures and output folder.
 
 ## Design
 
@@ -65,8 +68,10 @@ The studio switches backgrounds, templates, bezel, fonts and per-tile copy,
 and saves to `goldie.design.json` so the CLI renders the same thing. The
 config also takes:
 
-- `frame`: `17-pro-blue`, `17-pro-silver`, `17-pro-orange`, or a custom
-  bezel image; `theme.screenOnly: true` drops it.
+- `frame`: `17-pro-blue`, `17-pro-silver`, `17-pro-orange` for the iPhone,
+  `ipad-pro-13-silver`, `ipad-pro-13-space-gray` for the iPad (one variant,
+  or one per device key), or a custom bezel image; `theme.screenOnly: true`
+  drops it.
 - `theme.template`: `editorial`, `showcase`, `magazine`, `storyboard`,
   `dynamic`, or your own layout sequence from `classic`, `copy-below`, `hero`,
   `offset`, `tilt`, `tilt-right`, `duo`, `duo-tilt`, `panorama`,

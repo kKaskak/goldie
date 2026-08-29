@@ -21,12 +21,16 @@ const config: GoldieConfig = {
   appPath: `${process.env.HOME}/Library/Developer/Xcode/DerivedData/<App>-<hash>/Build/Products/Release-iphonesimulator/<App>.app`,
   bundleId: "com.example.app",
 
-  devices: ["iphone-6.9"], // keys from src/specs.ts
+  devices: ["iphone-6.9"], // keys from src/specs.ts; add "ipad-13" for the 13" iPad
   locales: ["en-US"],
   appearance: "light",
 
-  // Bundled bezel art for the screenshots: "17-pro-silver" | "17-pro-blue" | "17-pro-orange".
-  // Custom art instead: frame: { image: "path/to/bezel.png" } (re-measure src/frame.ts).
+  // Bundled bezel art for the screenshots: "17-pro-silver" | "17-pro-blue" |
+  // "17-pro-orange" for the iPhone, "ipad-pro-13-silver" | "ipad-pro-13-space-gray"
+  // for the iPad. One variant applies to its own device and the others keep their
+  // first variant; frame: { variant: { "ipad-13": "ipad-pro-13-space-gray" } } sets
+  // them per device. Custom art instead: frame: { image: "path/to/bezel.png" }
+  // (re-measure src/frame.ts).
   frame: { variant: "17-pro-blue" },
 
   theme: {
