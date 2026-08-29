@@ -3,6 +3,7 @@ import { Reorder } from "motion/react";
 import type React from "react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { FRAMES, type FrameGeometry } from "../../../src/frame";
 import {
   BADGE,
   type Composition,
@@ -97,6 +98,7 @@ export function Strip({
   onSceneLayout: (sceneId: string, key: string | undefined) => void;
 }) {
   const theme = design.theme;
+  const frameGeometry = FRAMES[tileSpec.key as keyof typeof FRAMES] ?? FRAMES["iphone-6.9"];
   const scenes =
     order.length > 0
       ? [...design.scenes].sort((a, b) => rankOf(order, a.id) - rankOf(order, b.id))
@@ -211,6 +213,7 @@ export function Strip({
             spec={spec}
             slice={slice}
             tile={tileSpec.screenshot}
+            frame={frameGeometry}
             theme={theme}
             screenOnly={screenOnly}
             background={background}
@@ -605,6 +608,7 @@ function ScreenshotScene({
   spec,
   slice,
   tile,
+  frame,
   theme,
   screenOnly,
   background,
@@ -624,6 +628,7 @@ function ScreenshotScene({
   spec: (typeof LAYOUTS)[keyof typeof LAYOUTS];
   slice: number;
   tile: { width: number; height: number };
+  frame: FrameGeometry;
   theme: Theme;
   screenOnly: boolean;
   background: string;
@@ -640,7 +645,7 @@ function ScreenshotScene({
   locale: string;
   onEdit?: (field: "headline" | "subhead", text: string) => void;
 }) {
-  const c = compose(spec, tile, theme, { screenOnly });
+  const c = compose(spec, tile, theme, { screenOnly, frame });
   const { w, h } = cq(tile);
   const editable = onEdit ? editableProps : () => ({});
   const copy = c.copy;

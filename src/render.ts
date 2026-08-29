@@ -19,6 +19,7 @@ import {
 } from "./config.ts";
 import { exec, execOrThrow } from "./exec.ts";
 import { registerFonts } from "./fonts.ts";
+import { FRAMES } from "./frame.ts";
 import { BADGE, type Composition, compose, SCREEN_SHADOW, TYPE } from "./layouts.ts";
 import { DEVICES, type DeviceKey, PREVIEW, SCREENSHOT_PIXEL_FORMAT } from "./specs.ts";
 
@@ -48,7 +49,7 @@ export async function renderScreenshots(cfg: LoadedConfig, deviceKey: DeviceKey,
   for (const name of await readdir(outDir)) {
     if (name.endsWith(".png")) await rm(join(outDir, name), { force: true });
   }
-  const bezel = cfg.theme.screenOnly ? null : await loadImage(framePath(cfg));
+  const bezel = cfg.theme.screenOnly ? null : await loadImage(framePath(cfg, deviceKey));
   registerFonts();
 
   const tile = spec.screenshot;
@@ -70,7 +71,10 @@ export async function renderScreenshots(cfg: LoadedConfig, deviceKey: DeviceKey,
   const files = await Promise.all(
     jobs.map(async ({ scene, layout, secondScene, first }) => {
       console.log(`  frame ${scene.id}`);
-      const c = compose(layout, tile, cfg.theme, { screenOnly: cfg.theme.screenOnly });
+      const c = compose(layout, tile, cfg.theme, {
+        screenOnly: cfg.theme.screenOnly,
+        frame: FRAMES[deviceKey],
+      });
 
       const canvas = createCanvas(c.width, c.height);
       const ctx = canvas.getContext("2d");

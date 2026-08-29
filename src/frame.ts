@@ -1,18 +1,41 @@
+import type { DeviceKey } from "./specs.ts";
+
 /**
- * Geometry of the bezel PNGs in assets/ (the 17-pro-* variants): the bezel
- * image and the transparent screen cutout inside it, both in the source PNG's
- * own pixels. All bundled variants share this geometry. Measured from the
- * alpha channel; re-measure if custom bezel art is used instead. Layouts built on it live
- * in layouts.ts.
+ * Geometry of a device's bezel PNGs in assets/: the image and the transparent
+ * screen cutout inside it, both in the source PNG's own pixels. Every variant
+ * of a device shares its geometry, and every PNG is trimmed to the device
+ * itself, so a layout's `widthRatio` means the same size on every device.
+ * Measured from the alpha channel; re-measure if custom bezel art is used
+ * instead. Layouts built on it live in layouts.ts.
  */
-export const FRAME = {
-  width: 606,
-  height: 1252,
-  screen: { x: 24, y: 21, width: 557, height: 1210 },
+export type FrameGeometry = {
+  width: number;
+  height: number;
+  screen: { x: number; y: number; width: number; height: number };
   /**
    * Corner radius of the screen cutout. The bezel ring is thinner than this
-   * radius, so square screen content would poke past the phone's outer corner;
+   * radius, so square screen content would poke past the device's outer corner;
    * the compositor clips the content with the scaled radius instead.
    */
-  screenRadius: 82,
-} as const;
+  screenRadius: number;
+};
+
+export const FRAMES: Record<DeviceKey, FrameGeometry> = {
+  /** The 17-pro-* variants. */
+  "iphone-6.9": {
+    width: 606,
+    height: 1252,
+    screen: { x: 24, y: 21, width: 557, height: 1210 },
+    screenRadius: 82,
+  },
+  /** The ipad-pro-13-* variants. */
+  "ipad-13": {
+    width: 2247,
+    height: 2932,
+    screen: { x: 98, y: 104, width: 2046, height: 2730 },
+    screenRadius: 36,
+  },
+};
+
+/** The iPhone geometry, which compose() uses when no device is given. */
+export const FRAME = FRAMES["iphone-6.9"];

@@ -55,6 +55,8 @@ const FRAME_META: Record<string, { label: string; tint: string }> = {
   "17-pro-silver": { label: "Silver", tint: "#D8D9DD" },
   "17-pro-blue": { label: "Deep Blue", tint: "#2B3A5C" },
   "17-pro-orange": { label: "Cosmic Orange", tint: "#E0662F" },
+  "ipad-pro-13-silver": { label: "Silver", tint: "#D8D9DD" },
+  "ipad-pro-13-space-gray": { label: "Space Gray", tint: "#53565A" },
 };
 
 /** The studio's "System" font choice; mirrors SYSTEM_FONT in src/fonts.ts. */
@@ -62,6 +64,7 @@ const SYSTEM_FONT = '-apple-system, "SF Pro Display", system-ui, sans-serif';
 
 export function DesignPanel({
   design,
+  device,
   background,
   frame,
   fontFamily,
@@ -76,6 +79,8 @@ export function DesignPanel({
   onScreenOnly,
 }: {
   design: Design;
+  /** The device on show; the frame choices are the variants drawn for it. */
+  device: string;
   background: string;
   frame: string;
   fontFamily: string;
@@ -100,12 +105,13 @@ export function DesignPanel({
   }
 
   const preset = PRESETS.find((p) => p.css === background);
+  const variants = design.frameVariants.filter((v) => v.device === device).map((v) => v.key);
+  const custom = design.frames[device] === null;
   const frameChoices: Array<[string, string]> = [
-    ...design.frameVariants.map((v): [string, string] => [v, FRAME_META[v]?.label ?? v]),
-    ...(design.frameVariant === null ? [["", "Custom (from config)"] as [string, string]] : []),
+    ...variants.map((v): [string, string] => [v, FRAME_META[v]?.label ?? v]),
+    ...(custom ? [["", "Custom (from config)"] as [string, string]] : []),
   ];
-  const showFrames =
-    !screenOnly && (design.frameVariants.length > 1 || design.frameVariant === null);
+  const showFrames = !screenOnly && (variants.length > 1 || custom);
 
   return (
     <div className="flex flex-col gap-5 px-5 py-5">

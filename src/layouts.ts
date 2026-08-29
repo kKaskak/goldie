@@ -6,7 +6,7 @@
  * the exported PNG identical. Every number that shapes a composition lives
  * here; neither renderer carries geometry or type sizes of its own.
  */
-import { FRAME } from "./frame.ts";
+import { FRAME, type FrameGeometry } from "./frame.ts";
 
 export const LAYOUT_KEYS = [
   "classic",
@@ -332,19 +332,21 @@ export type Composition = {
 
 /**
  * Pixel geometry for a layout on a tile of the given size. `screenOnly`
- * drops the bezel: the device box becomes the bare screen cutout.
+ * drops the bezel: the device box becomes the bare screen cutout. `frame` is
+ * the device's bezel geometry (FRAMES in frame.ts); the iPhone's by default.
  */
 export function compose(
   spec: LayoutSpec,
   tile: { width: number; height: number },
   theme: { copyHeightRatio: number; deviceWidthRatio: number },
-  opts: { screenOnly?: boolean } = {},
+  opts: { screenOnly?: boolean; frame?: FrameGeometry } = {},
 ): Composition {
   const width = tile.width * spec.span;
   const height = tile.height;
+  const bezel = opts.frame ?? FRAME;
   const art = opts.screenOnly
-    ? { width: FRAME.screen.width, height: FRAME.screen.height, screen: { x: 0, y: 0 } }
-    : { width: FRAME.width, height: FRAME.height, screen: FRAME.screen };
+    ? { width: bezel.screen.width, height: bezel.screen.height, screen: { x: 0, y: 0 } }
+    : { width: bezel.width, height: bezel.height, screen: bezel.screen };
 
   const isClassic = spec.key === "classic";
   const copyHeight =
@@ -394,9 +396,9 @@ export function compose(
       screen: {
         left: left + art.screen.x * scale,
         top: top + art.screen.y * scale,
-        width: FRAME.screen.width * scale,
-        height: FRAME.screen.height * scale,
-        radius: FRAME.screenRadius * scale,
+        width: bezel.screen.width * scale,
+        height: bezel.screen.height * scale,
+        radius: bezel.screenRadius * scale,
       },
       rotate: d.rotate,
       capture: d.capture,
