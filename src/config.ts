@@ -11,7 +11,7 @@ import {
   TEMPLATE_KEYS,
   type TemplateChoice,
 } from "./layouts.ts";
-import { DEVICE_KEYS, type DeviceKey, isDeviceKey } from "./specs.ts";
+import { DEVICE_KEYS, DEVICES, type DeviceKey, isDeviceKey } from "./specs.ts";
 
 /** Bezel art bundled in goldie's own assets/, one PNG per variant, each drawn for one device. */
 export const FRAME_VARIANTS = [
@@ -169,6 +169,27 @@ export type GoldieConfig = {
   /** Simulator .app bundle to install. */
   appPath: string;
   bundleId: string;
+  /** The .apk to install and its applicationId. Required when `devices` names an android key. */
+  android?: {
+    appPath: string;
+    applicationId: string;
+    /**
+     * Real bezel art for the android device, with its own geometry: the image
+     * (relative to the config), its pixel size, the transparent screen cutout
+     * inside it, and the cutout's corner radius. Android SDK emulator skins
+     * (`$ANDROID_HOME/skins/<device>/`) carry exactly this: `back.webp` is the
+     * frame and the `layout` file states the display rect and corner_radius;
+     * punch the display rect transparent and point this at the result. Without
+     * it the device renders the drawn generic bezel.
+     */
+    frame?: {
+      image: string;
+      width: number;
+      height: number;
+      screen: { x: number; y: number; width: number; height: number };
+      screenRadius: number;
+    };
+  };
   devices: DeviceKey[];
   locales: Locale[];
   /** Simulator appearance for every capture. */
@@ -251,7 +272,9 @@ export async function loadConfig(path = defaultConfigPath()): Promise<LoadedConf
     }
   }
   applyDesign(loaded, readDesign(path));
-  for (const d of loaded.devices) framePath(loaded, d); // fail at load time on a bad variant or missing bezel PNG
+  // Fail at load time on a bad variant or missing bezel PNG; android devices
+  // never load one from cfg.frame (drawn generic bezel or cfg.android.frame).
+  for (const d of loaded.devices) if (DEVICES[d].platform !== "android") framePath(loaded, d);
   validateLayouts(loaded);
   return loaded;
 }
@@ -325,7 +348,7 @@ export function applyDesign(cfg: LoadedConfig, design: DesignOverrides): void {
   }
   if (Object.keys(frames).length > 0) {
     cfg.frame = { variant: { ...configVariants(cfg), ...frames } };
-    for (const d of cfg.devices) framePath(cfg, d); // throws on an unknown variant
+    for (const d of cfg.devices) if (DEVICES[d].platform !== "android") framePath(cfg, d); // throws on an unknown variant
   }
   if (design.fontFamily) cfg.theme.fontFamily = design.fontFamily;
   if (design.copy) {

@@ -56,7 +56,7 @@ describe("compose", () => {
   test("a layout composes against the device's own frame geometry", () => {
     const ipad = { width: 2064, height: 2752 };
     const art = FRAMES["ipad-13"];
-    const c = compose(LAYOUTS.classic, ipad, theme, { frame: art });
+    const c = compose(LAYOUTS.classic, ipad, theme, { geom: art });
     const { frame, screen } = c.devices[0]!;
     const scale = frame.width / art.width;
     expect(screen.left).toBeCloseTo(frame.left + art.screen.x * scale, 6);
@@ -71,6 +71,7 @@ describe("compose", () => {
     // since drawDevice cover-fits the capture into it.
     for (const [key, art] of Object.entries(FRAMES)) {
       const spec = DEVICES[key as keyof typeof DEVICES];
+      if (spec.drawnBezel) continue; // borrows the iPhone geometry; no art of its own
       const cutout = art.screen.width / art.screen.height;
       const capture = spec.screenshot.width / spec.screenshot.height;
       expect(Math.abs(cutout / capture - 1)).toBeLessThan(0.01);

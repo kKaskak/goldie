@@ -19,7 +19,12 @@ const config: GoldieConfig = {
   appPath: `${process.env.HOME}/Library/Developer/Xcode/DerivedData/<App>-<hash>/Build/Products/Release-iphonesimulator/<App>.app`,
   bundleId: "com.example.app",
 
-  // "iphone-6.9" (iPhone 17 Pro Max) and/or "ipad-13" (iPad Pro 13-inch); keys from $GOLDIE/src/specs.ts.
+  // Google Play too: add "android-phone" and the android block below. Scenes
+  // and flows are shared across devices; argent flows replay on Android when
+  // their selectors match. The emulator must already be running.
+  // android: { appPath: "/path/to/app-release.apk", applicationId: "com.example.app" },
+
+  // "iphone-6.9" (iPhone 17 Pro Max), "ipad-13" (iPad Pro 13-inch), "android-phone"; keys from $GOLDIE/src/specs.ts.
   // Every device replays the same flows and gets its own raw captures, output folder and studio view.
   devices: ["iphone-6.9", "ipad-13"],
   locales: ["en-US"],

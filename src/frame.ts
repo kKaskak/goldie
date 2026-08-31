@@ -20,14 +20,16 @@ export type FrameGeometry = {
   screenRadius: number;
 };
 
+/** The 17-pro-* variants. */
+const IPHONE_FRAME: FrameGeometry = {
+  width: 606,
+  height: 1252,
+  screen: { x: 24, y: 21, width: 557, height: 1210 },
+  screenRadius: 82,
+};
+
 export const FRAMES: Record<DeviceKey, FrameGeometry> = {
-  /** The 17-pro-* variants. */
-  "iphone-6.9": {
-    width: 606,
-    height: 1252,
-    screen: { x: 24, y: 21, width: 557, height: 1210 },
-    screenRadius: 82,
-  },
+  "iphone-6.9": IPHONE_FRAME,
   /** The ipad-pro-13-* variants. */
   "ipad-13": {
     width: 2247,
@@ -35,6 +37,8 @@ export const FRAMES: Record<DeviceKey, FrameGeometry> = {
     screen: { x: 98, y: 104, width: 2046, height: 2730 },
     screenRadius: 36,
   },
+  /** No bundled art; the drawn generic bezel shares the iPhone proportions. */
+  "android-phone": IPHONE_FRAME,
 };
 
 /** The iPhone geometry, which compose() uses when no device is given. */
