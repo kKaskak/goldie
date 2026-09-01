@@ -4,14 +4,18 @@
  *   screenshot-specifications | app-preview-specifications. Verified 2026-08-24.
  * Android: Play Console help, "Add preview assets". Phone screenshots are
  *   PNG/JPEG, 16:9 or 9:16, each side 320-3840px for promotional eligibility.
- *   Play accepts no video uploads (the promo video is a YouTube link), which
- *   is why `preview` is null on android devices.
+ *   Play accepts no video uploads: the promo video is a YouTube link, so the
+ *   android preview renders at a YouTube-friendly size for the user to post
+ *   themselves, with no store constraints enforced.
  */
 
-export type DeviceKey = "iphone-6.9" | "ipad-13" | "android-phone";
+export type DeviceKey = "iphone-6.9" | "ipad-13" | "pixel-10-pro";
 
 export type DeviceSpec = {
-  /** Human label used in output paths and logs. */
+  /**
+   * Display label for the studio and logs. Output paths use the DeviceKey,
+   * so raw/, screenshots/ and previews/ all share one naming scheme.
+   */
   label: string;
   platform: "ios" | "android";
   /**
@@ -20,18 +24,27 @@ export type DeviceSpec = {
    */
   simulatorName?: string;
   /**
+   * Accepted AVD hardware profiles (`hw.device.name` in the AVD's config.ini),
+   * in boot-preference order. Android only - a running emulator qualifies only
+   * when its profile is listed, so captures always come from the intended
+   * screen geometry. Every profile in the list must share that geometry.
+   */
+  avdDeviceNames?: string[];
+  /**
    * Native capture resolution, portrait. null accepts the device's native
    * capture size as-is (Android emulators vary).
    */
   native: { width: number; height: number } | null;
   /** Required screenshot upload size, portrait. */
   screenshot: { width: number; height: number };
-  /** Required app preview upload size, portrait. null: no app-preview video pipeline. */
+  /**
+   * Preview video render size, portrait. On iOS this is the upload size Apple
+   * requires; on android it is the size of the YouTube video the user posts
+   * themselves (Play takes no video uploads). null: no preview pipeline.
+   */
   preview: { width: number; height: number } | null;
   /** Render bare screens with the drop shadow instead of a bezel. */
   screenOnly?: true;
-  /** Render a drawn generic bezel: no licensed bezel art exists for this device. */
-  drawnBezel?: true;
 };
 
 export const DEVICES: Record<DeviceKey, DeviceSpec> = {
@@ -51,15 +64,18 @@ export const DEVICES: Record<DeviceKey, DeviceSpec> = {
     screenshot: { width: 2064, height: 2752 },
     preview: { width: 1200, height: 1600 },
   },
-  // No bundled Pixel bezel art (device-art licensing), so android renders a
-  // drawn generic bezel regardless of the config's frame choice.
-  "android-phone": {
-    label: "play-phone",
+  // Framed with the bundled Pixel 10 Pro art (src/frame.ts), not the config's
+  // frame variant, which is iPhone art with iPhone geometry. The Pixel 9 Pro
+  // shares the 1280x2856 screen, so its emulator captures compose identically.
+  "pixel-10-pro": {
+    label: "Play phone",
     platform: "android",
+    avdDeviceNames: ["pixel_10_pro", "pixel_9_pro"],
     native: null,
     screenshot: { width: 1080, height: 1920 },
-    preview: null,
-    drawnBezel: true,
+    // Near the 1280x2856 Pixel screen's aspect, so the cover-crop trims only a
+    // sliver; YouTube accepts any portrait size.
+    preview: { width: 1080, height: 2400 },
   },
 };
 
@@ -69,7 +85,11 @@ export function isDeviceKey(key: string): key is DeviceKey {
   return key in DEVICES;
 }
 
-/** Preview constraints Apple enforces at upload time. */
+/**
+ * Preview constraints Apple enforces at upload time. Both platforms encode
+ * with these settings; the duration and file-size bounds apply on iOS only
+ * (the android video goes to YouTube, which imposes none that matter here).
+ */
 export const PREVIEW = {
   fps: 30,
   minSeconds: 15,

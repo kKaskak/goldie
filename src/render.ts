@@ -11,15 +11,14 @@ import {
 import type { CaptureManifest } from "./capture.ts";
 import {
   type Decoration,
-  framePath,
+  deviceFrame,
   isPreview,
   type LoadedConfig,
   resolvedScenes,
   type Theme,
 } from "./config.ts";
 import { exec, execOrThrow } from "./exec.ts";
-import { registerFonts } from "./fonts.ts";
-import { FRAMES } from "./frame.ts";
+import { registerFonts, withGlyphFallback } from "./fonts.ts";
 import { BADGE, type Composition, compose, SCREEN_SHADOW, TYPE } from "./layouts.ts";
 import { DEVICES, type DeviceKey, PREVIEW, SCREENSHOT_PIXEL_FORMAT } from "./specs.ts";
 
@@ -43,26 +42,22 @@ async function readManifest(cfg: LoadedConfig, deviceKey: DeviceKey): Promise<Ca
 export async function renderScreenshots(cfg: LoadedConfig, deviceKey: DeviceKey, locale: string) {
   const spec = DEVICES[deviceKey];
   const manifest = await readManifest(cfg, deviceKey);
-  const outDir = join(cfg.outDir, "screenshots", spec.label, locale);
+  // Releases before 0.3 keyed this dir by spec.label; a stale label dir
+  // would otherwise ride along into the export zip.
+  if (spec.label !== deviceKey)
+    await rm(join(cfg.outDir, "screenshots", spec.label), { recursive: true, force: true });
+  const outDir = join(cfg.outDir, "screenshots", deviceKey, locale);
   await mkdir(outDir, { recursive: true });
   // A layout change renumbers the files; stale ones would otherwise be exported.
   for (const name of await readdir(outDir)) {
     if (name.endsWith(".png")) await rm(join(outDir, name), { force: true });
   }
-  // A device spec can force screen-only rendering, or a drawn generic bezel
-  // when no bezel art is bundled for it (the android device). Config-supplied
-  // frame art with its own geometry (cfg.android.frame) outranks the drawn one.
-  const customFrame = spec.platform === "android" ? cfg.android?.frame : undefined;
+  // Each device brings its own bezel art and geometry: the config's frame on
+  // iOS, the bundled (or config-supplied) Pixel art on android. A device spec
+  // can force screen-only rendering, which drops the bezel entirely.
+  const { image, geom } = deviceFrame(cfg, deviceKey);
   const screenOnly = Boolean(cfg.theme.screenOnly || spec.screenOnly);
-  const drawnBezel = !screenOnly && !customFrame && spec.drawnBezel === true;
-  const bezel = screenOnly
-    ? null
-    : customFrame
-      ? await loadImage(resolve(cfg.root, customFrame.image))
-      : drawnBezel
-        ? null
-        : await loadImage(framePath(cfg, deviceKey));
-  const geom = customFrame ?? FRAMES[deviceKey];
+  const bezel = screenOnly ? null : await loadImage(image);
   registerFonts();
 
   const tile = spec.screenshot;
@@ -115,7 +110,7 @@ export async function renderScreenshots(cfg: LoadedConfig, deviceKey: DeviceKey,
       for (const device of c.devices) {
         const sceneId = device.capture === "secondary" ? secondScene! : scene.id;
         const capture = await loadImage(findShot(sceneId).file);
-        drawDevice(ctx, device, capture, bezel, { width: c.designWidth }, drawnBezel);
+        drawDevice(ctx, device, capture, bezel, { width: c.designWidth });
       }
 
       const out: string[] = [];
@@ -173,10 +168,11 @@ function drawCopy(
   theme: Theme,
   text: { headline: string; subhead?: string },
 ) {
+  const family = withGlyphFallback(theme.fontFamily);
   const blocks = [
     {
       text: text.headline,
-      font: `${TYPE.headlineWeight} ${tile.width * TYPE.headlineSize}px ${theme.fontFamily}`,
+      font: `${TYPE.headlineWeight} ${tile.width * TYPE.headlineSize}px ${family}`,
       color: theme.headlineColor,
       lineHeight: TYPE.headlineLineHeight,
       letterSpacing: tile.width * TYPE.headlineTracking,
@@ -185,7 +181,7 @@ function drawCopy(
       ? [
           {
             text: text.subhead,
-            font: `${TYPE.subheadWeight} ${tile.width * TYPE.subheadSize}px ${theme.fontFamily}`,
+            font: `${TYPE.subheadWeight} ${tile.width * TYPE.subheadSize}px ${family}`,
             color: theme.subheadColor,
             lineHeight: TYPE.subheadLineHeight,
             letterSpacing: 0,
@@ -216,7 +212,6 @@ function drawDevice(
   capture: Image,
   bezel: Image | null,
   tile: { width: number },
-  drawnBezel = false,
 ) {
   const { frame, screen } = device;
   ctx.save();
@@ -227,29 +222,7 @@ function drawDevice(
     ctx.rotate((device.rotate * Math.PI) / 180);
     ctx.translate(-cx, -cy);
   }
-  if (!bezel && drawnBezel) {
-    // Generic drawn bezel: the bezel PNGs' frame box filled as a dark ring
-    // around the screen cutout, so android tiles share the iOS proportions
-    // without shipping licensed device art. Filled the same black Android
-    // bakes into a screenshot's corner mask and punch-hole, so those merge
-    // into the bezel instead of reading as a second misaligned ring.
-    const ring = screen.left - frame.left;
-    const radius = screen.radius + ring;
-    ctx.save();
-    ctx.shadowColor = SCREEN_SHADOW.color;
-    ctx.shadowBlur = tile.width * SCREEN_SHADOW.blur;
-    ctx.shadowOffsetY = tile.width * SCREEN_SHADOW.offsetY;
-    ctx.fillStyle = "#000";
-    ctx.beginPath();
-    ctx.roundRect(frame.left, frame.top, frame.width, frame.height, radius);
-    ctx.fill();
-    ctx.restore();
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
-    ctx.lineWidth = Math.max(1, ring * 0.12);
-    ctx.beginPath();
-    ctx.roundRect(frame.left, frame.top, frame.width, frame.height, radius);
-    ctx.stroke();
-  } else if (!bezel) {
+  if (!bezel) {
     ctx.save();
     ctx.shadowColor = SCREEN_SHADOW.color;
     ctx.shadowBlur = tile.width * SCREEN_SHADOW.blur;
@@ -292,7 +265,7 @@ async function drawDecorations(
   for (const d of decorations) {
     if (d.kind === "badge") {
       const text = pick(d.text, locale, sceneId, "badge");
-      const font = `${BADGE.weight} ${tile.width * BADGE.fontSize}px ${cfg.theme.fontFamily}`;
+      const font = `${BADGE.weight} ${tile.width * BADGE.fontSize}px ${withGlyphFallback(cfg.theme.fontFamily)}`;
       ctx.font = font;
       ctx.letterSpacing = "0px";
       const size = fontSize(font);
@@ -329,6 +302,23 @@ async function drawDecorations(
 
 const fontSize = (font: string) => Number(font.match(/(\d+(?:\.\d+)?)px/)?.[1]);
 
+const segmenter = new Intl.Segmenter(undefined, { granularity: "word" });
+
+/**
+ * Splits a paragraph at the points a line may break. Splitting on spaces
+ * alone would leave CJK copy as one unbreakable run (those scripts use no
+ * spaces), so segmentation finds the word boundaries instead. Whitespace and
+ * punctuation glue to the preceding unit, so a line never starts with them.
+ */
+function breakableUnits(paragraph: string): string[] {
+  const units: string[] = [];
+  for (const s of segmenter.segment(paragraph)) {
+    if (s.isWordLike || units.length === 0) units.push(s.segment);
+    else units[units.length - 1] += s.segment;
+  }
+  return units;
+}
+
 /** Word-wraps text to `maxWidth`, honouring explicit newlines. */
 export function wrapLines(
   ctx: SKRSContext2D,
@@ -342,16 +332,16 @@ export function wrapLines(
   const lines: string[] = [];
   for (const paragraph of text.split("\n")) {
     let line = "";
-    for (const word of paragraph.split(/\s+/).filter(Boolean)) {
-      const next = line ? `${line} ${word}` : word;
-      if (line && ctx.measureText(next).width > maxWidth) {
-        lines.push(line);
-        line = word;
+    for (const unit of breakableUnits(paragraph.replace(/\s+/g, " ").trim())) {
+      const next = line + unit;
+      if (line && ctx.measureText(next.trimEnd()).width > maxWidth) {
+        lines.push(line.trimEnd());
+        line = unit;
       } else {
         line = next;
       }
     }
-    lines.push(line);
+    lines.push(line.trimEnd());
   }
   return lines;
 }
@@ -475,17 +465,18 @@ function splitTopLevel(s: string): string[] {
 }
 
 /**
- * Joins the raw segment clips into one plain screen recording at the upload
- * size. App Store previews must be the device screen and nothing else, so no
- * bezel, background or captions are added; only an audio track, which Apple
- * requires even when it is silent.
+ * Joins the raw segment clips into one plain screen recording at the spec's
+ * preview size. App Store previews must be the device screen and nothing
+ * else, so no bezel, background or captions are added; only an audio track,
+ * which Apple requires even when it is silent. The android video follows the
+ * same shape, destined for the YouTube promo link the user posts themselves.
  */
 export async function renderPreview(cfg: LoadedConfig, deviceKey: DeviceKey, locale: string) {
   const spec = DEVICES[deviceKey];
   const scene = cfg.scenes.find(isPreview);
   if (!scene) return null;
   if (!spec.preview) {
-    console.log(`  ${deviceKey} has no preview pipeline (Google Play takes a YouTube link)`);
+    console.log(`  ${deviceKey} has no preview pipeline`);
     return null;
   }
   const manifest = await readManifest(cfg, deviceKey);
@@ -500,14 +491,17 @@ export async function renderPreview(cfg: LoadedConfig, deviceKey: DeviceKey, loc
   });
 
   const seconds = clips.reduce((s, c) => s + c.durationSeconds, 0);
-  if (seconds < PREVIEW.minSeconds || seconds > PREVIEW.maxSeconds) {
+  // The 15-30s window is Apple's upload rule; a YouTube video has no bounds.
+  if (spec.platform === "ios" && (seconds < PREVIEW.minSeconds || seconds > PREVIEW.maxSeconds)) {
     throw new Error(
       `Preview is ${seconds.toFixed(1)}s; Apple requires ${PREVIEW.minSeconds}-${PREVIEW.maxSeconds}s. ` +
         `Adjust the segment flows or their holdSeconds and re-capture.`,
     );
   }
 
-  const outDir = join(cfg.outDir, "previews", spec.label, locale);
+  if (spec.label !== deviceKey)
+    await rm(join(cfg.outDir, "previews", spec.label), { recursive: true, force: true });
+  const outDir = join(cfg.outDir, "previews", deviceKey, locale);
   await mkdir(outDir, { recursive: true });
   const list = join(outDir, `.${scene.id}.clips.txt`);
   await writeFile(list, clips.map((c) => `file '${c.file.replace(/'/g, "'\\''")}'`).join("\n"));
@@ -575,7 +569,7 @@ export async function verify(
   const spec = DEVICES[deviceKey];
   let ok = true;
 
-  const shotDir = join(cfg.outDir, "screenshots", spec.label, locale);
+  const shotDir = join(cfg.outDir, "screenshots", deviceKey, locale);
   const shots = await exec("sh", ["-c", `ls ${shotDir}/*.png 2>/dev/null`], { quiet: true });
   for (const file of shots.stdout.split("\n").filter(Boolean)) {
     const r = await execOrThrow("sips", [
@@ -605,7 +599,7 @@ export async function verify(
   const previewSpec = spec.preview;
   if (!previewSpec) return ok;
 
-  const previewDir = join(cfg.outDir, "previews", spec.label, locale);
+  const previewDir = join(cfg.outDir, "previews", deviceKey, locale);
   const videos = await exec("sh", ["-c", `ls ${previewDir}/*.mp4 2>/dev/null`], { quiet: true });
   for (const file of videos.stdout.split("\n").filter(Boolean)) {
     const r = await execOrThrow("ffprobe", [
@@ -624,6 +618,9 @@ export async function verify(
     const fps = evalRatio(video?.avg_frame_rate ?? "0/1");
     const bytes = (await stat(file)).size;
 
+    // Duration and file-size bounds are Apple upload rules; the android video
+    // goes to YouTube, so only the pipeline's own output is checked there.
+    const appleBounds = spec.platform === "ios";
     const checks: Array<[string, boolean, string]> = [
       [
         "size",
@@ -634,7 +631,7 @@ export async function verify(
       ["fps", fps <= PREVIEW.fps + 0.01, fps.toFixed(2)],
       [
         "duration",
-        duration >= PREVIEW.minSeconds && duration <= PREVIEW.maxSeconds,
+        !appleBounds || (duration >= PREVIEW.minSeconds && duration <= PREVIEW.maxSeconds),
         `${duration.toFixed(1)}s`,
       ],
       [
@@ -642,7 +639,11 @@ export async function verify(
         Boolean(audio) && audio.codec_name === "aac",
         audio ? `${audio.codec_name} ${audio.sample_rate}Hz` : "none",
       ],
-      ["filesize", bytes <= PREVIEW.maxBytes, `${(bytes / 1024 / 1024).toFixed(1)} MB`],
+      [
+        "filesize",
+        !appleBounds || bytes <= PREVIEW.maxBytes,
+        `${(bytes / 1024 / 1024).toFixed(1)} MB`,
+      ],
     ];
     for (const [name, good, detail] of checks) {
       ok &&= good;

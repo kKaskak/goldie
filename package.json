@@ -1,6 +1,6 @@
 {
   "name": "goldie",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "App Store screenshot and preview automation driven by argent",
   "license": "MIT",
   "repository": {
@@ -33,6 +33,8 @@
     "dist/",
     "assets/17-pro-*.png",
     "assets/ipad-pro-13-*.png",
+    "assets/pixel-10-pro.webp",
+    "assets/favicon.png",
     "assets/ATTRIBUTION.md",
     "assets/fonts/",
     "studio/dist/",

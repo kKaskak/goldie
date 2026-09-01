@@ -25,13 +25,23 @@ export type Decoration =
 export type LayoutEntry = { key: string; label: string; description: string; span: number };
 export type TemplateEntry = { key: string; label: string; description: string; sequence: string[] };
 
-/** null simulatorName / preview mark an android device; the strip fully renders only iOS today (multi-device UI is PR #1). */
+/** Mirrors FrameGeometry in src/layouts.ts: a bezel image's box and the screen cutout inside it. */
+export type FrameGeometry = {
+  width: number;
+  height: number;
+  screen: { x: number; y: number; width: number; height: number };
+  screenRadius: number;
+};
+
 export type DeviceEntry = {
   key: string;
   label: string;
+  platform: "ios" | "android";
   simulatorName: string | null;
   screenshot: { width: number; height: number };
   preview: { width: number; height: number } | null;
+  /** Bezel art fixed to this device (android), null when the frame picker applies. */
+  frame: { url: string; geom: FrameGeometry } | null;
 };
 
 export type DesignScene = {
@@ -99,16 +109,30 @@ export type StoreManifest = {
   design: Design;
 };
 
+/** A load failure with the CLI command that fixes it, for the empty state. */
+export class ManifestError extends Error {
+  constructor(
+    message: string,
+    readonly command: string,
+  ) {
+    super(message);
+  }
+}
+
 export async function loadManifest(): Promise<StoreManifest> {
   const res = await fetch("/store.json", { cache: "no-store" });
   if (!res.ok) {
-    throw new Error(
-      "No out/store.json. Generate the assets first:  goldie all  (or  goldie manifest)",
+    throw new ManifestError(
+      "There is no out/store.json yet. Generate the assets first.",
+      "goldie all",
     );
   }
   const manifest: StoreManifest = await res.json();
   if (!manifest.design?.fonts || !manifest.design.layouts || !manifest.design.frames) {
-    throw new Error("out/store.json predates browser-side composition. Re-run: goldie manifest");
+    throw new ManifestError(
+      "out/store.json predates browser-side composition. Regenerate it.",
+      "goldie manifest",
+    );
   }
 
   // Raw captures keep their names across a re-capture, so the manifest's

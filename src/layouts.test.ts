@@ -71,7 +71,10 @@ describe("compose", () => {
     // since drawDevice cover-fits the capture into it.
     for (const [key, art] of Object.entries(FRAMES)) {
       const spec = DEVICES[key as keyof typeof DEVICES];
-      if (spec.drawnBezel) continue; // borrows the iPhone geometry; no art of its own
+      // Android captures come at the emulator's own size (native: null) and
+      // the Pixel cutout cover-crops them; the 16:9 Play tile is not the
+      // capture aspect, so the check only holds on iOS.
+      if (spec.native === null) continue;
       const cutout = art.screen.width / art.screen.height;
       const capture = spec.screenshot.width / spec.screenshot.height;
       expect(Math.abs(cutout / capture - 1)).toBeLessThan(0.01);
@@ -88,6 +91,23 @@ describe("compose", () => {
     expect(c.copy!.position).toBe("bottom");
     expect(c.copy!.box.top + c.copy!.box.height).toBe(tile.height);
     expect(c.copy!.y).toBeCloseTo(tile.height * (1 - 0.05));
+  });
+
+  test("on a wide tile left-aligned copy stays at the card's left edge", () => {
+    const wide = { width: 1080, height: 1920 };
+    const narrow = compose(LAYOUTS.panorama, tile, theme);
+    const c = compose(LAYOUTS.panorama, wide, theme);
+    // The centring shift moves centred copy but never a left-aligned block.
+    expect(c.copy!.box.left).toBeCloseTo(narrow.copy!.box.left * (c.designWidth / tile.width));
+    const centred = compose(LAYOUTS.hero, wide, theme);
+    expect(centred.copy!.box.left).toBeGreaterThan(0);
+  });
+
+  test("on a wide tile the device clears a bottom copy band", () => {
+    const wide = { width: 1080, height: 1920 };
+    const c = compose(LAYOUTS["copy-below"], wide, theme);
+    const { frame } = c.devices[0]!;
+    expect(frame.top + frame.height).toBeLessThanOrEqual(c.copy!.box.top - wide.height * 0.015);
   });
 });
 
