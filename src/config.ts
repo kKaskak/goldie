@@ -1,9 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { ANDROID_FRAME, FRAMES } from "./frame.ts";
+import { ANDROID_FRAME, FRAMES, type FrameGeometry } from "./frame.ts";
 import {
-  type FrameGeometry,
   isLayoutKey,
   isTemplateKey,
   LAYOUT_KEYS,

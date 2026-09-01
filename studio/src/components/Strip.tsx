@@ -21,7 +21,6 @@ import type {
   DesignScene,
   DeviceCaptures,
   DeviceEntry,
-  FrameGeometry,
   SceneCopy,
   Theme,
 } from "../manifest";

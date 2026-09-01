@@ -25,7 +25,7 @@ export type Decoration =
 export type LayoutEntry = { key: string; label: string; description: string; span: number };
 export type TemplateEntry = { key: string; label: string; description: string; sequence: string[] };
 
-/** Mirrors FrameGeometry in src/layouts.ts: a bezel image's box and the screen cutout inside it. */
+/** Mirrors FrameGeometry in src/frame.ts: a bezel image's box and the screen cutout inside it. */
 export type FrameGeometry = {
   width: number;
   height: number;

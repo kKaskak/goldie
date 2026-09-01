@@ -16,7 +16,8 @@ import {
 } from "./config.ts";
 import { execOrThrow } from "./exec.ts";
 import { FONTS, fontFilePath } from "./fonts.ts";
-import { type FrameGeometry, LAYOUTS, TEMPLATES } from "./layouts.ts";
+import type { FrameGeometry } from "./frame.ts";
+import { LAYOUTS, TEMPLATES } from "./layouts.ts";
 import { DEVICES, type DeviceKey } from "./specs.ts";
 
 /**
